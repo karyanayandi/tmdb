@@ -25,8 +25,7 @@ const readLocalCompanyIds = (filePath) => {
             return null;
           }
         })
-        .filter(Boolean)
-        .slice(0, 2);
+        .filter(Boolean);
       resolve(companyIds);
     });
   });
