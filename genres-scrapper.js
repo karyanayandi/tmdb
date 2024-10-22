@@ -61,13 +61,11 @@ const fetchTvGenres = async () => {
 const sendToApi = async (genre) => {
   try {
     const response = await axios.post(
-      "http://localhost:3000/api/public/genre/create",
+      "http://beta.nsmna.co/api/public/genre/create",
       genre,
       {
         headers: {
           "Content-Type": "application/json",
-          // Tambahkan header Authorization jika perlu
-          // 'Authorization': 'Bearer <token>'
         },
       }
     );
