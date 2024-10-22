@@ -61,7 +61,7 @@ const fetchTvGenres = async () => {
 const sendToApi = async (genre) => {
   try {
     const response = await axios.post(
-      "http://beta.nsmna.co/api/public/genre/create",
+      "https://beta.nsmna.co/api/public/genre/create",
       genre,
       {
         headers: {

@@ -28,8 +28,7 @@ const readLocalMovieIds = (filePath) => {
             return null;
           }
         })
-        .filter(Boolean)
-        .slice(0, 2);
+        .filter(Boolean);
 
       resolve(movieIds);
     });
@@ -79,7 +78,7 @@ const uploadImageToApi = async (logoBlob, contentType, title) => {
     formData.append("type", "movie"); // Tambahkan tipe data
 
     const response = await axios.post(
-      "http://beta.nsmna.co/api/public/media/image", // URL endpoint untuk upload gambar
+      "https://beta.nsmna.co/api/public/media/image", // URL endpoint untuk upload gambar
       formData,
       {
         headers: {
@@ -98,7 +97,7 @@ const uploadImageToApi = async (logoBlob, contentType, title) => {
 const sendMovieDataToApi = async (data) => {
   try {
     const response = await axios.post(
-      "http://beta.nsmna.co/api/public/movie/create",
+      "https://beta.nsmna.co/api/public/movie/create",
       data
     );
     console.log(`Inserted movie data: ${data.title}`);
@@ -137,7 +136,7 @@ const rateLimit = (func, limit, interval) => {
 const getGenreByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
-      `http://beta.nsmna.co/api/public/genre/by-tmdb-id/${tmdbId}`
+      `https://beta.nsmna.co/api/public/genre/by-tmdb-id/${tmdbId}`
     );
     return response.data; // Kembalikan data genre yang sesuai
   } catch (error) {
@@ -150,7 +149,7 @@ const getGenreByTmdbId = async (tmdbId) => {
 const getProductionCompanyByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
-      `http://beta.nsmna.co/api/public/production-company/by-tmdb-id/${tmdbId}`
+      `https://beta.nsmna.co/api/public/production-company/by-tmdb-id/${tmdbId}`
     );
     return response.data; // Kembalikan data production company yang sesuai
   } catch (error) {
