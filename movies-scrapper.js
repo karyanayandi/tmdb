@@ -2,6 +2,9 @@ const axios = require("axios");
 const fs = require("fs");
 const FormData = require("form-data");
 
+const startIndex = parseInt(process.argv[2], 10) || 0; // Nilai default 0 jika tidak ada input
+const endIndex = parseInt(process.argv[3], 10) || 10000; // Nilai default 10000 jika tidak ada input
+
 // Ganti dengan API Key dari TMDB
 const TMDB_API_KEY = "b08364c6e443363275695e6752510848";
 
@@ -28,7 +31,8 @@ const readLocalMovieIds = (filePath) => {
             return null;
           }
         })
-        .filter(Boolean);
+        .filter(Boolean)
+        .slice(startIndex, endIndex);
 
       resolve(movieIds);
     });
@@ -87,12 +91,14 @@ const uploadImageToApi = async (logoBlob, contentType, title) => {
       }
     );
 
-    console.log(`Uploaded logo for company: ${title}`);
+    console.log(`Uploaded logo for movie: ${title}`);
     return { data: response.data };
   } catch (error) {
     console.error("Error uploading image to API:", error.message);
+    return null; // Jika gagal, kembalikan null
   }
 };
+
 // Fungsi untuk mengirim data film ke API
 const sendMovieDataToApi = async (data) => {
   try {
@@ -103,6 +109,7 @@ const sendMovieDataToApi = async (data) => {
     console.log(`Inserted movie data: ${data.title}`);
   } catch (error) {
     console.error("Error inserting movie data to API:", error.message);
+    throw error; // Tambahkan throw untuk menandakan kegagalan
   }
 };
 
@@ -161,6 +168,26 @@ const getProductionCompanyByTmdbId = async (tmdbId) => {
   }
 };
 
+// Fungsi untuk menambahkan ID film ke file error
+const logErrorMovie = (id) => {
+  const errorData = {
+    id: id,
+  };
+
+  // Append the JSON object to the error file, one per line
+  fs.appendFileSync("error_movie_ids.json", JSON.stringify(errorData) + "\n");
+  console.log(`Logged error movie ID: ${id}`);
+};
+const logUncompleted = (id) => {
+  const errorData = {
+    id: id,
+  };
+
+  // Append the JSON object to the error file, one per line
+  fs.appendFileSync("movie_ids.json", JSON.stringify(errorData) + "\n");
+  console.log(`Logged uncompleted movie ID: ${id}`);
+};
+
 // Fungsi utama untuk menjalankan scraping berdasarkan file JSON lokal
 const runTmdbScraper = async () => {
   const filePath = "./movies.json"; // Path ke file JSON lokal yang berisi ID film
@@ -180,92 +207,112 @@ const runTmdbScraper = async () => {
         let poster_url = "";
         let backdrop_url = "";
 
-        const genres = await Promise.all(
-          movieDetails.genres.map(async (genre) => {
-            return await getGenreByTmdbId(genre.id);
-          })
-        );
-
-        const productionCompanies = await Promise.all(
-          movieDetails.production_companies.map(async (production_company) => {
-            return await getProductionCompanyByTmdbId(production_company.id);
-          })
-        );
-
-        if (movieDetails.poster_path) {
-          const posterImageData = await downloadImageAsBlob(
-            movieDetails.poster_path
+        try {
+          const genres = await Promise.all(
+            movieDetails.genres.map(async (genre) => {
+              return await getGenreByTmdbId(genre.id);
+            })
           );
 
-          if (posterImageData?.blob) {
-            const posterResults = await uploadImageToApi(
-              posterImageData.blob,
-              posterImageData?.contentType,
-              movieDetails.title
-            );
-            if (posterResults?.data?.url) {
-              poster_url = posterResults.url;
-            }
-          }
-        }
-
-        if (movieDetails.backdrop_path) {
-          const backdropImageData = await downloadImageAsBlob(
-            movieDetails.backdrop_path
+          const productionCompanies = await Promise.all(
+            movieDetails.production_companies.map(
+              async (production_company) => {
+                return await getProductionCompanyByTmdbId(
+                  production_company.id
+                );
+              }
+            )
           );
 
-          if (backdropImageData?.blob) {
-            const backdropResults = await uploadImageToApi(
-              backdropImageData.blob,
-              backdropImageData?.contentType,
-              movieDetails.title
+          // Proses poster
+          if (movieDetails.poster_path) {
+            const posterImageData = await downloadImageAsBlob(
+              movieDetails.poster_path
             );
-            if (backdropResults?.data?.url) {
-              backdrop_url = backdropResults?.data?.url;
+            if (posterImageData?.blob) {
+              const posterResults = await uploadImageToApi(
+                posterImageData.blob,
+                posterImageData.contentType,
+                movieDetails.title
+              );
+              if (posterResults && posterResults?.data?.[0]?.url) {
+                poster_url = posterResults?.data?.[0]?.url;
+              } else {
+                // Jika gagal upload, tambahkan ID film ke file error
+                throw new Error("Poster upload failed");
+              }
+            } else {
+              throw new Error("Poster download failed");
             }
           }
+
+          // Proses backdrop
+          if (movieDetails.backdrop_path) {
+            const backdropImageData = await downloadImageAsBlob(
+              movieDetails.backdrop_path
+            );
+            if (backdropImageData?.blob) {
+              const backdropResults = await uploadImageToApi(
+                backdropImageData.blob,
+                backdropImageData.contentType,
+                movieDetails.title
+              );
+              if (backdropResults && backdropResults?.data?.[0]?.url) {
+                backdrop_url = backdropResults?.data?.[0]?.url;
+              } else {
+                // Jika gagal upload, tambahkan ID film ke file error
+                throw new Error("Backdrop upload failed");
+              }
+            } else {
+              throw new Error("Backdrop download failed");
+            }
+          }
+
+          const dataToSend = {
+            language: "en",
+            imdbId: movieDetails.imdb_id?.toString() ?? "",
+            tmdbId: movieDetails.id?.toString(),
+            title: movieDetails.title,
+            overview: movieDetails.overview
+              ? `${movieDetails.overview}\n\nSource: IMDB`
+              : "",
+            releaseDate: movieDetails.release_date
+              ? new Date(movieDetails.release_date).toISOString()
+              : null,
+            originalLanguage: movieDetails.original_language ?? "",
+            backdrop: backdrop_url ?? "",
+            poster: poster_url ?? "",
+            tagline: movieDetails.tagline,
+            status: movieDetails.status,
+            originCountry: movieDetails.origin_country?.[0] ?? "",
+            genres:
+              genres?.length > 0 ? genres.map((genre) => genre.id) : undefined,
+            productionCompanies:
+              productionCompanies?.length > 0
+                ? productionCompanies.map((company) => company.id)
+                : undefined,
+          };
+
+          await sendMovieDataToApi(dataToSend);
+
+          if (!movieDetails.imdb_id) {
+            logUncompleted(movieDetails.id);
+          } else if (!movieDetails.overview) {
+            logUncompleted(movieDetails.id);
+          }
+        } catch (error) {
+          console.error(
+            `Error processing movie ID ${movie.id}:`,
+            error.message
+          );
+          logErrorMovie(movieDetails.id);
         }
-
-        // Data yang akan dikirim
-        const dataToSend = {
-          language: "en", // Tentukan bahasa default
-          imdbId: movieDetails.imdb_id?.toString() ?? "", // Jika tidak ada, gunakan string kosong
-          tmdbId: movieDetails.id?.toString(), // Pastikan ID TMDB dalam bentuk string
-          title: movieDetails.title,
-          overview: movieDetails.overview
-            ? `${movieDetails.overview}\n\nSource: IMDB`
-            : "", // Jika tidak ada, gunakan string kosong
-          releaseDate: movieDetails.release_date
-            ? new Date(movieDetails.release_date).toISOString()
-            : null, // Konversi ke Date atau null
-          originalLanguage: movieDetails.original_language ?? "", // Ambil original_language
-          backdrop: backdrop_url ?? "", // Sertakan URL backdrop jika ada
-          poster: poster_url ?? "",
-          tagline: movieDetails.tagline,
-          status: movieDetails.status,
-          originCountry: movieDetails.origin_country?.[0] ?? "",
-          spokenLanguaeg: movieDetails.spoken_language,
-          budget: movieDetails.budget,
-          revenue: movieDetails.revenue,
-          runtime: movieDetails.runtime,
-          homepage: movieDetails.homepage,
-          genres: genres.map((genre) => genre.id?.toString()), // Ambil genre ID sebagai array string
-          productionCompanies: productionCompanies.map((company) =>
-            company.id?.toString()
-          ), // Ambil production company ID sebagai array string
-        };
-
-        // Kirim langsung detail film ke API
-        await sendMovieDataToApi(dataToSend);
-        console.log(
-          `Fetched and inserted details for movie ID ${movie.id}: ${movieDetails.title}`
-        );
       }
     }
   } catch (error) {
-    console.error("Error during scraping:", error);
+    console.error("Error running scraper:", error.message);
   }
 };
 
-// Menjalankan fungsi scraper
+// Jalankan scraper
 runTmdbScraper();
