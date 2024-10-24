@@ -233,7 +233,7 @@ const runTmdbScraper = async () => {
               const posterResults = await uploadImageToApi(
                 posterImageData.blob,
                 posterImageData.contentType,
-                movieDetails.title,
+                `${movieDetails.title}-poster`,
               );
               if (posterResults && posterResults?.data?.[0]?.url) {
                 poster_url = posterResults?.data?.[0]?.url;
@@ -255,7 +255,7 @@ const runTmdbScraper = async () => {
               const backdropResults = await uploadImageToApi(
                 backdropImageData.blob,
                 backdropImageData.contentType,
-                movieDetails.title,
+                `${movieDetails.title}-backdrop`,
               );
               if (backdropResults && backdropResults?.data?.[0]?.url) {
                 backdrop_url = backdropResults?.data?.[0]?.url;
@@ -272,7 +272,8 @@ const runTmdbScraper = async () => {
             language: "en",
             imdbId: movieDetails.imdb_id?.toString() ?? null,
             tmdbId: movieDetails.id?.toString(),
-            title: movieDetails.title,
+            title: movieDetails.originalTitle ?? movieDetails.title,
+            otherTitle: movieDetails.title,
             overview: movieDetails.overview
               ? `${movieDetails.overview}\n\nSource: IMDB`
               : null,
@@ -282,9 +283,16 @@ const runTmdbScraper = async () => {
             originalLanguage: movieDetails.original_language ?? null,
             backdrop: backdrop_url ?? null,
             poster: poster_url ?? null,
-            tagline: movieDetails.tagline,
-            status: movieDetails.status,
+            tagline: movieDetails.tagline ?? null,
+            status: movieDetails.status ?? null,
             originCountry: movieDetails.origin_country?.[0] ?? null,
+            budget: movieDetails.budget ?? null,
+            runtime: movieDetails.runtime ?? null,
+            revenue: movieDetails.revenue ?? null,
+            homepage: movieDetails.homepage ?? null,
+            spokenLanguages: movieDetails.spoken_languages
+              .map((language) => language.english_name)
+              .join(", "),
             genres:
               genres?.length > 0 ? genres.map((genre) => genre.id) : undefined,
             productionCompanies:
