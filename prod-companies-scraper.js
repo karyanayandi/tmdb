@@ -20,7 +20,7 @@ const readLocalCompanyIds = (filePath) => {
             return json.id ? { id: json.id } : null; // Ambil hanya ID
           } catch (parseError) {
             console.warn(
-              `Error parsing line: ${line}. Error: ${parseError.message}`
+              `Error parsing line: ${line}. Error: ${parseError.message}`,
             );
             return null;
           }
@@ -51,7 +51,7 @@ const downloadImageAsBlob = async (imagePath) => {
       `https://image.tmdb.org/t/p/original${imagePath}`,
       {
         responseType: "arraybuffer", // Dapatkan respon sebagai buffer
-      }
+      },
     );
     return {
       blob: Buffer.from(response.data), // Mengubah buffer ke Blob
@@ -67,7 +67,7 @@ const sendToApi = async (data) => {
   try {
     const response = await axios.post(
       "https://beta.nsmna.co/api/public/production-company/create",
-      data
+      data,
     );
     console.log(`Inserted prod company: ${data.title} (ID: ${data.tmdbId})`);
     return response.data;
@@ -92,7 +92,7 @@ const uploadImageToApi = async (logoBlob, contentType, title) => {
         headers: {
           ...formData.getHeaders(), // Sertakan header dari FormData
         },
-      }
+      },
     );
 
     console.log(`Uploaded logo for company: ${title}`);
@@ -143,7 +143,7 @@ const runProductionCompanyScraper = async () => {
     for (const company of companyIds) {
       const companyDetails = await fetchWithRateLimit(company.id);
       if (companyDetails) {
-        let logo_url = "";
+        let logo_url = null;
         if (companyDetails.logo_path) {
           const imageData = await downloadImageAsBlob(companyDetails.logo_path);
 
@@ -151,7 +151,7 @@ const runProductionCompanyScraper = async () => {
             const results = await uploadImageToApi(
               imageData.blob,
               imageData?.contentType,
-              companyDetails.name
+              companyDetails.name,
             );
             if (results?.data) {
               logo_url = results.data?.[0]?.url;
@@ -170,7 +170,7 @@ const runProductionCompanyScraper = async () => {
         await sendToApi(dataToSend);
 
         console.log(
-          `Fetched and inserted details for company ID ${company.id}: ${companyDetails.name}`
+          `Fetched and inserted details for company ID ${company.id}: ${companyDetails.name}`,
         );
       }
     }

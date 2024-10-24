@@ -26,7 +26,7 @@ const readLocalMovieIds = (filePath) => {
             return json.id && !json.adult ? { id: json.id } : null; // Ambil hanya ID
           } catch (parseError) {
             console.warn(
-              `Error parsing line: ${line}. Error: ${parseError.message}`
+              `Error parsing line: ${line}. Error: ${parseError.message}`,
             );
             return null;
           }
@@ -60,7 +60,7 @@ const downloadImageAsBlob = async (imagePath) => {
       `https://image.tmdb.org/t/p/original${imagePath}`,
       {
         responseType: "arraybuffer",
-      }
+      },
     );
     return {
       blob: Buffer.from(response.data),
@@ -88,7 +88,7 @@ const uploadImageToApi = async (logoBlob, contentType, title) => {
         headers: {
           ...formData.getHeaders(), // Sertakan header dari FormData
         },
-      }
+      },
     );
 
     console.log(`Uploaded logo for movie: ${title}`);
@@ -104,7 +104,7 @@ const sendMovieDataToApi = async (data) => {
   try {
     const response = await axios.post(
       "https://beta.nsmna.co/api/public/movie/create",
-      data
+      data,
     );
     console.log(`Inserted movie data: ${data.title}`);
   } catch (error) {
@@ -143,7 +143,7 @@ const rateLimit = (func, limit, interval) => {
 const getGenreByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
-      `https://beta.nsmna.co/api/public/genre/by-tmdb-id/${tmdbId}`
+      `https://beta.nsmna.co/api/public/genre/by-tmdb-id/${tmdbId}`,
     );
     return response.data; // Kembalikan data genre yang sesuai
   } catch (error) {
@@ -156,13 +156,13 @@ const getGenreByTmdbId = async (tmdbId) => {
 const getProductionCompanyByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
-      `https://beta.nsmna.co/api/public/production-company/by-tmdb-id/${tmdbId}`
+      `https://beta.nsmna.co/api/public/production-company/by-tmdb-id/${tmdbId}`,
     );
     return response.data; // Kembalikan data production company yang sesuai
   } catch (error) {
     console.error(
       `Error fetching production company for TMDB ID ${tmdbId}:`,
-      error.message
+      error.message,
     );
     return []; // Kembalikan array kosong jika ada kesalahan
   }
@@ -204,36 +204,36 @@ const runTmdbScraper = async () => {
     for (const movie of movieIds) {
       const movieDetails = await fetchWithRateLimit(movie.id);
       if (movieDetails) {
-        let poster_url = "";
-        let backdrop_url = "";
+        let poster_url = null;
+        let backdrop_url = null;
 
         try {
           const genres = await Promise.all(
             movieDetails.genres.map(async (genre) => {
               return await getGenreByTmdbId(genre.id);
-            })
+            }),
           );
 
           const productionCompanies = await Promise.all(
             movieDetails.production_companies.map(
               async (production_company) => {
                 return await getProductionCompanyByTmdbId(
-                  production_company.id
+                  production_company.id,
                 );
-              }
-            )
+              },
+            ),
           );
 
           // Proses poster
           if (movieDetails.poster_path) {
             const posterImageData = await downloadImageAsBlob(
-              movieDetails.poster_path
+              movieDetails.poster_path,
             );
             if (posterImageData?.blob) {
               const posterResults = await uploadImageToApi(
                 posterImageData.blob,
                 posterImageData.contentType,
-                movieDetails.title
+                movieDetails.title,
               );
               if (posterResults && posterResults?.data?.[0]?.url) {
                 poster_url = posterResults?.data?.[0]?.url;
@@ -249,13 +249,13 @@ const runTmdbScraper = async () => {
           // Proses backdrop
           if (movieDetails.backdrop_path) {
             const backdropImageData = await downloadImageAsBlob(
-              movieDetails.backdrop_path
+              movieDetails.backdrop_path,
             );
             if (backdropImageData?.blob) {
               const backdropResults = await uploadImageToApi(
                 backdropImageData.blob,
                 backdropImageData.contentType,
-                movieDetails.title
+                movieDetails.title,
               );
               if (backdropResults && backdropResults?.data?.[0]?.url) {
                 backdrop_url = backdropResults?.data?.[0]?.url;
@@ -270,21 +270,21 @@ const runTmdbScraper = async () => {
 
           const dataToSend = {
             language: "en",
-            imdbId: movieDetails.imdb_id?.toString() ?? "",
+            imdbId: movieDetails.imdb_id?.toString() ?? null,
             tmdbId: movieDetails.id?.toString(),
             title: movieDetails.title,
             overview: movieDetails.overview
               ? `${movieDetails.overview}\n\nSource: IMDB`
-              : "",
+              : null,
             releaseDate: movieDetails.release_date
               ? new Date(movieDetails.release_date).toISOString()
               : null,
-            originalLanguage: movieDetails.original_language ?? "",
-            backdrop: backdrop_url ?? "",
-            poster: poster_url ?? "",
+            originalLanguage: movieDetails.original_language ?? null,
+            backdrop: backdrop_url ?? null,
+            poster: poster_url ?? null,
             tagline: movieDetails.tagline,
             status: movieDetails.status,
-            originCountry: movieDetails.origin_country?.[0] ?? "",
+            originCountry: movieDetails.origin_country?.[0] ?? null,
             genres:
               genres?.length > 0 ? genres.map((genre) => genre.id) : undefined,
             productionCompanies:
@@ -303,7 +303,7 @@ const runTmdbScraper = async () => {
         } catch (error) {
           console.error(
             `Error processing movie ID ${movie.id}:`,
-            error.message
+            error.message,
           );
           logErrorMovie(movieDetails.id);
         }
