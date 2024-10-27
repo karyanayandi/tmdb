@@ -66,7 +66,7 @@ function modifyFileUrl(url) {
 
   const cleanName = namePart.split("_")[0]; // Ambil bagian sebelum underscore
 
-  const modifiedPath = `/article/${cleanName}.${extension}`;
+  const modifiedPath = `/image/${cleanName}.${extension}`;
 
   return `${urlObj.origin}${modifiedPath}`;
 }
@@ -78,8 +78,8 @@ function modifyUrlsInString(longString) {
 
   // Fungsi pengganti untuk setiap URL yang ditemukan
   return longString.replace(urlRegex, (match, fileName, extension) => {
-    // Buat URL yang dimodifikasi dengan menambahkan "/article" sebelum nama file dan menghapus bagian setelah underscore
-    return `https://assets.nisomnia.com/article/${fileName}.${extension}`;
+    // Buat URL yang dimodifikasi dengan menambahkan "/image" sebelum nama file dan menghapus bagian setelah underscore
+    return `https://assets.nisomnia.com/image/${fileName}.${extension}`;
   });
 }
 

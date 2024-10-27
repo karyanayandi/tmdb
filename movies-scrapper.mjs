@@ -100,7 +100,6 @@ const sendMovieDataToApi = async (data) => {
   try {
     await axios.post("https://nisomnia.com/api/public/movie/create", data);
     console.log(`Inserted movie data: ${data.title} with ID ${data.tmdbId}`);
-    saveMovieDataToFile(data);
   } catch (error) {
     console.error("Error inserting movie data to API:", error.message);
     throw error;
@@ -158,26 +157,6 @@ const getProductionCompanyByTmdbId = async (tmdbId) => {
     );
     return [];
   }
-};
-
-const saveMovieDataToFile = (movieData) => {
-  const savedMovies = {
-    id: movieData.id,
-  };
-
-  fs.appendFileSync(
-    "saved_movies.json",
-    JSON.stringify(savedMovies) + "\n",
-    (err) => {
-      if (err) {
-        console.error("Error saving movie data to file:", err.message);
-      } else {
-        console.log(
-          `Saved movie data for: ${movieData.title} ID ${movieData.id})`,
-        );
-      }
-    },
-  );
 };
 
 const logErrorMovie = (id) => {
