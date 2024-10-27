@@ -1,17 +1,12 @@
-const axios = require("axios");
-const fs = require("fs");
-const FormData = require("form-data");
+import axios from "axios";
+import fs from "fs";
 
-const startIndex = parseInt(process.argv[2], 10) || 0; // Nilai default 0 jika tidak ada input
-const endIndex = parseInt(process.argv[3], 10) || 10000; // Nilai default 10000 jika tidak ada input
+const startIndex = parseInt(process.argv[2], 10) || 0;
+const endIndex = parseInt(process.argv[3], 10) || 10000;
 
-// Ganti dengan API Key dari TMDB
 const TMDB_API_KEY = "b08364c6e443363275695e6752510848";
-
-// Base URL untuk TMDB API
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
-// Fungsi untuk membaca file JSON lokal
 const readLocalMovieIds = (filePath) => {
   return new Promise((resolve, reject) => {
     fs.readFile(filePath, "utf8", (err, data) => {
@@ -23,7 +18,7 @@ const readLocalMovieIds = (filePath) => {
         .map((line) => {
           try {
             const json = JSON.parse(line);
-            return json.id && !json.adult ? { id: json.id } : null; // Ambil hanya ID
+            return json.id && !json.adult ? { id: json.id } : null;
           } catch (parseError) {
             console.warn(
               `Error parsing line: ${line}. Error: ${parseError.message}`,
@@ -39,22 +34,20 @@ const readLocalMovieIds = (filePath) => {
   });
 };
 
-// Fungsi untuk mengambil detail film berdasarkan ID
 const fetchMovieDetails = async (movieId) => {
   const url = `${TMDB_BASE_URL}/movie/${movieId}?api_key=${TMDB_API_KEY}`;
 
   try {
     const response = await axios.get(url);
-    return response.data; // Kembalikan data detail film
+    return response.data;
   } catch (error) {
     console.error(`Error fetching movie details for ID ${movieId}:`, error);
     return null;
   }
 };
 
-// Fungsi untuk mengunduh gambar dan mengubahnya menjadi Blob
 const downloadImageAsBlob = async (imagePath) => {
-  if (!imagePath) return null; // Kembali jika tidak ada path gambar
+  if (!imagePath) return null;
   try {
     const response = await axios.get(
       `https://image.tmdb.org/t/p/original${imagePath}`,
@@ -62,8 +55,11 @@ const downloadImageAsBlob = async (imagePath) => {
         responseType: "arraybuffer",
       },
     );
+    // Create a Blob object with the ArrayBuffer data
     return {
-      blob: Buffer.from(response.data),
+      blob: new Blob([response.data], {
+        type: response.headers["content-type"],
+      }),
       contentType: response.headers["content-type"],
     };
   } catch (error) {
@@ -72,22 +68,21 @@ const downloadImageAsBlob = async (imagePath) => {
   }
 };
 
-// Fungsi untuk mengupload gambar ke API
 const uploadImageToApi = async (imageBlob, contentType, title) => {
   try {
-    const formData = new FormData(); // Buat instance FormData
-    const ext = contentType.split("/")[1]; // Ambil ekstensi dari content-type
-    const filename = `${title.replace(/\s+/g, "_")}.${ext}`; // Ubah nama file berdasarkan ekstensi
-    formData.append("file", imageBlob, { filename, contentType }); // Tambahkan Blob sebagai file
-    formData.append("category", "movie"); // Tambahkan tipe data
-    formData.append("type", "image"); // Tambahkan tipe data
+    const formData = new FormData();
+    const ext = contentType.split("/")[1];
+    const filename = `${title.replace(/\s+/g, "_")}.${ext}`;
+    formData.append("file", imageBlob, { filename, contentType });
+    formData.append("category", "movie");
+    formData.append("type", "image");
 
     const response = await axios.post(
-      "https://nisomnia.com/api/public/media/image", // URL endpoint untuk upload gambar
+      "https://nisomnia.com/api/public/media/image",
       formData,
       {
         headers: {
-          ...formData.getHeaders(), // Sertakan header dari FormData
+          ...formData.getHeaders(),
         },
       },
     );
@@ -96,23 +91,25 @@ const uploadImageToApi = async (imageBlob, contentType, title) => {
     return { data: response.data };
   } catch (error) {
     console.error("Error uploading image to API:", error.message);
-    return null; // Jika gagal, kembalikan null
+    return null;
   }
 };
 
-// Fungsi untuk mengirim data film ke API
-
-try {
-  const response = await axios.post(
-    "https://nisomnia.com/api/public/movie/create",
-    data,
-  );
-  console.log(`Inserted movie data: ${data.title} with ID ${response.data.id}`);
-  saveMovieDataToFile(data);
-} catch (error) {
-  console.error("Error inserting movie data to API:", error.message);
-  throw error; // Tambahkan throw untuk menandakan kegagalan
-}
+const sendMovieDataToApi = async (data) => {
+  try {
+    const response = await axios.post(
+      "https://nisomnia.com/api/public/movie/create",
+      data,
+    );
+    console.log(
+      `Inserted movie data: ${data.title} with ID ${response.data.id}`,
+    );
+    saveMovieDataToFile(data);
+  } catch (error) {
+    console.error("Error inserting movie data to API:", error.message);
+    throw error;
+  }
+};
 
 const rateLimit = (func, limit, interval) => {
   let calls = 0;
@@ -140,36 +137,33 @@ const rateLimit = (func, limit, interval) => {
   };
 };
 
-// Fungsi untuk mengambil data berdasarkan genre ID
 const getGenreByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
       `https://nisomnia.com/api/public/genre/by-tmdb-id/${tmdbId}`,
     );
-    return response.data; // Kembalikan data genre yang sesuai
+    return response.data;
   } catch (error) {
     console.error(`Error fetching genre for TMDB ID ${tmdbId}:`, error.message);
-    return []; // Kembalikan array kosong jika ada kesalahan
+    return [];
   }
 };
 
-// Fungsi untuk mengambil data production company berdasarkan TMDB ID
 const getProductionCompanyByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
       `https://nisomnia.com/api/public/production-company/by-tmdb-id/${tmdbId}`,
     );
-    return response.data; // Kembalikan data production company yang sesuai
+    return response.data;
   } catch (error) {
     console.error(
       `Error fetching production company for TMDB ID ${tmdbId}:`,
       error.message,
     );
-    return []; // Kembalikan array kosong jika ada kesalahan
+    return [];
   }
 };
 
-// Fungsi untuk menyimpan data film ke file JSON
 const saveMovieDataToFile = (movieData) => {
   fs.appendFile(
     "saved_movies.json",
@@ -184,29 +178,17 @@ const saveMovieDataToFile = (movieData) => {
   );
 };
 
-// Fungsi untuk menambahkan ID film ke file error
 const logErrorMovie = (id) => {
   const errorData = {
     id: id,
   };
 
-  // Append the JSON object to the error file, one per line
   fs.appendFileSync("error_movie_ids.json", JSON.stringify(errorData) + "\n");
   console.log(`Logged error movie ID: ${id}`);
 };
-const logUncompleted = (id) => {
-  const errorData = {
-    id: id,
-  };
 
-  // Append the JSON object to the error file, one per line
-  fs.appendFileSync("movie_ids.json", JSON.stringify(errorData) + "\n");
-  console.log(`Logged uncompleted movie ID: ${id}`);
-};
-
-// Fungsi utama untuk menjalankan scraping berdasarkan file JSON lokal
 const runTmdbScraper = async () => {
-  const filePath = "./movies.json"; // Path ke file JSON lokal yang berisi ID film
+  const filePath = "./movies.json";
   try {
     const movieIds = await readLocalMovieIds(filePath);
 
@@ -215,7 +197,7 @@ const runTmdbScraper = async () => {
       return;
     }
 
-    const fetchWithRateLimit = rateLimit(fetchMovieDetails, 40, 225); // 225ms untuk mencapai 40 request dalam 9 detik
+    const fetchWithRateLimit = rateLimit(fetchMovieDetails, 40, 225);
 
     for (const movie of movieIds) {
       const movieDetails = await fetchWithRateLimit(movie.id);
@@ -240,7 +222,6 @@ const runTmdbScraper = async () => {
             ),
           );
 
-          // Proses poster
           if (movieDetails.poster_path) {
             const posterImageData = await downloadImageAsBlob(
               movieDetails.poster_path,
@@ -254,7 +235,6 @@ const runTmdbScraper = async () => {
               if (posterResults && posterResults?.data?.[0]?.url) {
                 poster_url = posterResults?.data?.[0]?.url;
               } else {
-                // Jika gagal upload, tambahkan ID film ke file error
                 throw new Error("Poster upload failed");
               }
             } else {
@@ -262,7 +242,6 @@ const runTmdbScraper = async () => {
             }
           }
 
-          // Proses backdrop
           if (movieDetails.backdrop_path) {
             const backdropImageData = await downloadImageAsBlob(
               movieDetails.backdrop_path,
@@ -276,7 +255,6 @@ const runTmdbScraper = async () => {
               if (backdropResults && backdropResults?.data?.[0]?.url) {
                 backdrop_url = backdropResults?.data?.[0]?.url;
               } else {
-                // Jika gagal upload, tambahkan ID film ke file error
                 throw new Error("Backdrop upload failed");
               }
             } else {
@@ -308,29 +286,27 @@ const runTmdbScraper = async () => {
             spokenLanguages: movieDetails.spoken_languages
               .map((language) => language.english_name)
               .join(", "),
-            genres:
-              genres?.length > 0 ? genres.map((genre) => genre.id) : undefined,
+            genres: genres?.length > 0 ? genres.map((genre) => genre.id) : null,
             productionCompanies:
               productionCompanies?.length > 0
                 ? productionCompanies.map((company) => company.id)
-                : undefined,
-            status: "published",
+                : null,
           };
 
           await sendMovieDataToApi(dataToSend);
         } catch (error) {
           console.error(
-            `Error processing movie ID ${movie.id}:`,
-            error.message,
+            `Error sending movie data for ID ${movieDetails.id}: ${error.message}`,
           );
-          logErrorMovie(movieDetails.id);
+          logErrorMovie(movie.id);
         }
+      } else {
+        logErrorMovie(movie.id);
       }
     }
   } catch (error) {
-    console.error("Error running scraper:", error.message);
+    console.error("Error running TMDB scraper:", error);
   }
 };
 
-// Jalankan scraper
 runTmdbScraper();
