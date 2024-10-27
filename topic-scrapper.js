@@ -28,14 +28,14 @@ async function sendToApi(data) {
   while (attempt <= maxRetries && !success) {
     try {
       // Coba mengirim data ke API
-      await axios.post("https://beta.nsmna.co/api/public/topic/create/", data);
+      await axios.post("https://nisomnia.com/api/public/topic/create/", data);
       console.log("Data successfully sent:", data.title);
       success = true; // Tandai pengiriman berhasil
     } catch (error) {
       attempt++;
       console.error(
         `Error sending data on attempt ${attempt} for ${data.title}:`,
-        error.message
+        error.message,
       );
 
       if (attempt > maxRetries) {

@@ -73,16 +73,17 @@ const downloadImageAsBlob = async (imagePath) => {
 };
 
 // Fungsi untuk mengupload gambar ke API
-const uploadImageToApi = async (logoBlob, contentType, title) => {
+const uploadImageToApi = async (imageBlob, contentType, title) => {
   try {
     const formData = new FormData(); // Buat instance FormData
     const ext = contentType.split("/")[1]; // Ambil ekstensi dari content-type
     const filename = `${title.replace(/\s+/g, "_")}.${ext}`; // Ubah nama file berdasarkan ekstensi
-    formData.append("file", logoBlob, { filename, contentType }); // Tambahkan Blob sebagai file
-    formData.append("type", "movie"); // Tambahkan tipe data
+    formData.append("file", imageBlob, { filename, contentType }); // Tambahkan Blob sebagai file
+    formData.append("category", "movie"); // Tambahkan tipe data
+    formData.append("type", "image"); // Tambahkan tipe data
 
     const response = await axios.post(
-      "https://beta.nsmna.co/api/public/media/image", // URL endpoint untuk upload gambar
+      "https://nisomnia.com/api/public/media/image", // URL endpoint untuk upload gambar
       formData,
       {
         headers: {
@@ -100,18 +101,18 @@ const uploadImageToApi = async (logoBlob, contentType, title) => {
 };
 
 // Fungsi untuk mengirim data film ke API
-const sendMovieDataToApi = async (data) => {
-  try {
-    const response = await axios.post(
-      "https://beta.nsmna.co/api/public/movie/create",
-      data,
-    );
-    console.log(`Inserted movie data: ${data.title}`);
-  } catch (error) {
-    console.error("Error inserting movie data to API:", error.message);
-    throw error; // Tambahkan throw untuk menandakan kegagalan
-  }
-};
+
+try {
+  const response = await axios.post(
+    "https://nisomnia.com/api/public/movie/create",
+    data,
+  );
+  console.log(`Inserted movie data: ${data.title} with ID ${response.data.id}`);
+  saveMovieDataToFile(data);
+} catch (error) {
+  console.error("Error inserting movie data to API:", error.message);
+  throw error; // Tambahkan throw untuk menandakan kegagalan
+}
 
 const rateLimit = (func, limit, interval) => {
   let calls = 0;
@@ -143,7 +144,7 @@ const rateLimit = (func, limit, interval) => {
 const getGenreByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
-      `https://beta.nsmna.co/api/public/genre/by-tmdb-id/${tmdbId}`,
+      `https://nisomnia.com/api/public/genre/by-tmdb-id/${tmdbId}`,
     );
     return response.data; // Kembalikan data genre yang sesuai
   } catch (error) {
@@ -156,7 +157,7 @@ const getGenreByTmdbId = async (tmdbId) => {
 const getProductionCompanyByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
-      `https://beta.nsmna.co/api/public/production-company/by-tmdb-id/${tmdbId}`,
+      `https://nisomnia.com/api/public/production-company/by-tmdb-id/${tmdbId}`,
     );
     return response.data; // Kembalikan data production company yang sesuai
   } catch (error) {
@@ -166,6 +167,21 @@ const getProductionCompanyByTmdbId = async (tmdbId) => {
     );
     return []; // Kembalikan array kosong jika ada kesalahan
   }
+};
+
+// Fungsi untuk menyimpan data film ke file JSON
+const saveMovieDataToFile = (movieData) => {
+  fs.appendFile(
+    "saved_movies.json",
+    JSON.stringify(movieData) + "\n",
+    (err) => {
+      if (err) {
+        console.error("Error saving movie data to file:", err.message);
+      } else {
+        console.log(`Saved movie data for: ${movieData.title}`);
+      }
+    },
+  );
 };
 
 // Fungsi untuk menambahkan ID film ke file error
@@ -275,7 +291,7 @@ const runTmdbScraper = async () => {
             title: movieDetails.originalTitle ?? movieDetails.title,
             otherTitle: movieDetails.title,
             overview: movieDetails.overview
-              ? `${movieDetails.overview}\n\nSource: IMDB`
+              ? `${movieDetails.overview}\n\n(Source: IMDB)`
               : null,
             releaseDate: movieDetails.release_date
               ? new Date(movieDetails.release_date).toISOString()
@@ -284,7 +300,7 @@ const runTmdbScraper = async () => {
             backdrop: backdrop_url ?? null,
             poster: poster_url ?? null,
             tagline: movieDetails.tagline ?? null,
-            status: movieDetails.status ?? null,
+            airingStatus: movieDetails.status ?? null,
             originCountry: movieDetails.origin_country?.[0] ?? null,
             budget: movieDetails.budget ?? null,
             runtime: movieDetails.runtime ?? null,
@@ -302,12 +318,6 @@ const runTmdbScraper = async () => {
           };
 
           await sendMovieDataToApi(dataToSend);
-
-          if (!movieDetails.imdb_id) {
-            logUncompleted(movieDetails.id);
-          } else if (!movieDetails.overview) {
-            logUncompleted(movieDetails.id);
-          }
         } catch (error) {
           console.error(
             `Error processing movie ID ${movie.id}:`,

@@ -61,13 +61,13 @@ const fetchTvGenres = async () => {
 const sendToApi = async (genre) => {
   try {
     const response = await axios.post(
-      "https://beta.nsmna.co/api/public/genre/create",
+      "https://nisomnia.com/api/public/genre/create",
       genre,
       {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
     console.log(`Inserted genre: ${genre.title} (ID: ${genre.tmdbId})`);
   } catch (error) {
@@ -84,7 +84,7 @@ const runGenreScraper = async () => {
         return await fetchFunction();
       },
       20,
-      500
+      500,
     ); // 20 request per 5 detik
 
     // Fetch genre film dan genre TV secara bersamaan dengan rate limit

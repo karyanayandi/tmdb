@@ -30,8 +30,8 @@ async function fetchData() {
 async function sendToApi(data) {
   try {
     const response = await axios.post(
-      "https://beta.nsmna.co/api/public/article/create/",
-      data
+      "https://nisomnia.com/api/public/article/create/",
+      data,
     );
     console.log("Data successfully sent:", data.slug);
   } catch (error) {
@@ -41,7 +41,7 @@ async function sendToApi(data) {
 async function getTopicbyID(slug) {
   try {
     const response = await axios.get(
-      "https://beta.nsmna.co/api/public/topic/by-slug/" + slug
+      "https://nisomnia.com/api/public/topic/by-slug/" + slug,
     );
     return response.data;
   } catch (error) {
@@ -120,19 +120,19 @@ async function main() {
             if (error) {
               console.error(
                 `Error fetching topic with ID ${element.B}:`,
-                error
+                error,
               );
               throw error;
             } else {
               const awe = await getTopicbyID(
-                cleanAfterLastUnderscore(topic?.slug)
+                cleanAfterLastUnderscore(topic?.slug),
               );
               topicIdsReal.push(awe?.id);
             }
           } catch (error) {
             console.error(
               `Error during fetching topic for ID ${element.B}:`,
-              error
+              error,
             );
             throw error; // Menangkap error di luar try-catch utama
           }
@@ -200,7 +200,7 @@ async function retryFailedItems(data, failedIndices) {
         if (error) {
           console.error(
             `Retry Error fetching topic with ID ${element.B}:`,
-            error
+            error,
           );
           throw error;
         } else {

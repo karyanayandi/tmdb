@@ -28,7 +28,7 @@ async function fetchData() {
 async function checkImage(data) {
   try {
     const response = await axios.get(
-      "http://localhost:3000/api/public/media/image/by-id/" + data
+      "http://localhost:3000/api/public/media/image/by-id/" + data,
     );
     console.log("aya ey:", response.data?.url);
     return response.data;
@@ -50,7 +50,7 @@ const downloadImageAsBlob = async (url, index) => {
     };
   } catch (error) {
     console.error(
-      `Error downloading image from Supa at index ${index}: ${error.message}`
+      `Error downloading image from Supa at index ${index}: ${error.message}`,
     );
     return null; // Mengembalikan null jika terjadi error
   }
@@ -71,20 +71,20 @@ const uploadImageToApi = async (logoBlob, contentType, url, index) => {
       formData.append("type", "article"); // Tambahkan tipe data
 
       const response = await axios.post(
-        "https://beta.nsmna.co/api/public/media/image", // URL endpoint untuk upload gambar
+        "https://nisomnia.com/api/public/media/image", // URL endpoint untuk upload gambar
         formData,
         {
           headers: {
             ...formData.getHeaders(), // Sertakan header dari FormData
           },
-        }
+        },
       );
 
       console.log(`Uploaded logo for company at index ${index}: ${url}`);
       return { data: response.data };
     } catch (error) {
       console.error(
-        `Error uploading image to API at index ${index}: ${url} ${error.message}`
+        `Error uploading image to API at index ${index}: ${url} ${error.message}`,
       );
     }
   }
@@ -112,7 +112,7 @@ async function main() {
             imageData.blob,
             imageData?.contentType,
             url.url,
-            index // Pass index to upload function
+            index, // Pass index to upload function
           );
         }
       }

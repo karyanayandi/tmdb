@@ -66,7 +66,7 @@ const downloadImageAsBlob = async (imagePath) => {
 const sendToApi = async (data) => {
   try {
     const response = await axios.post(
-      "https://beta.nsmna.co/api/public/production-company/create",
+      "https://nisomnia.com/api/public/production-company/create",
       data,
     );
     console.log(`Inserted prod company: ${data.title} (ID: ${data.tmdbId})`);
@@ -86,7 +86,7 @@ const uploadImageToApi = async (logoBlob, contentType, title) => {
     formData.append("type", "production_company"); // Tambahkan tipe data
 
     const response = await axios.post(
-      "https://beta.nsmna.co/api/public/media/image", // URL endpoint untuk upload gambar
+      "https://nisomnia.com/api/public/media/image", // URL endpoint untuk upload gambar
       formData,
       {
         headers: {
