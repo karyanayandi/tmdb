@@ -263,8 +263,8 @@ const runTmdbScraper = async () => {
           }
 
           const dataToSend = {
-            ...(movieDetails.imdbId && {
-              imdbId: movieDetails.imdb_id?.toString(),
+            ...(movieDetails.imdb_id && {
+              imdbId: movieDetails.imdb_id,
             }),
             tmdbId: movieDetails.id?.toString(),
             title: movieDetails.original_title ?? movieDetails.title,
