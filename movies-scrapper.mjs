@@ -1,5 +1,7 @@
 import axios from "axios";
 import fs from "fs";
+import https from "https";
+import FormData from "form-data";
 
 const startIndex = parseInt(process.argv[2], 10) || 0;
 const endIndex = parseInt(process.argv[3], 10) || 10000;
@@ -41,44 +43,39 @@ const fetchMovieDetails = async (movieId) => {
     const response = await axios.get(url);
     return response.data;
   } catch (error) {
-    console.error(`Error fetching movie details for ID ${movieId}:`, error);
-    return null;
-  }
-};
-
-const downloadImageAsBlob = async (imagePath) => {
-  if (!imagePath) return null;
-  try {
-    const response = await axios.get(
-      `https://image.tmdb.org/t/p/original${imagePath}`,
-      {
-        responseType: "arraybuffer",
-      },
+    console.error(
+      `Error fetching movie details for ID ${movieId}:`,
+      error.message,
     );
-    // Create a Blob object with the ArrayBuffer data
-    return {
-      blob: new Blob([response.data], {
-        type: response.headers["content-type"],
-      }),
-      contentType: response.headers["content-type"],
-    };
-  } catch (error) {
-    console.error(`Error downloading image from TMDB: ${error.message}`);
     return null;
   }
 };
 
-const uploadImageToApi = async (imageBlob, contentType, title) => {
+const downloadImageAsStream = (imageUrl) => {
+  return new Promise((resolve, reject) => {
+    https
+      .get(imageUrl, (response) => {
+        if (response.statusCode === 200) {
+          resolve(response); // Resolve with the readable stream
+        } else {
+          reject(new Error(`Failed to download image: ${response.statusCode}`));
+        }
+      })
+      .on("error", (error) => reject(error));
+  });
+};
+
+const uploadImageToApi = async (imageStream, contentType, title) => {
   try {
     const formData = new FormData();
     const ext = contentType.split("/")[1];
     const filename = `${title.replace(/\s+/g, "_")}.${ext}`;
-    formData.append("file", imageBlob, { filename, contentType });
+    formData.append("file", imageStream, { filename, contentType });
     formData.append("category", "movie");
     formData.append("type", "image");
 
     const response = await axios.post(
-      "https://nisomnia.com/api/public/media/image",
+      "http://localhost:3000/api/public/media/image",
       formData,
       {
         headers: {
@@ -87,23 +84,22 @@ const uploadImageToApi = async (imageBlob, contentType, title) => {
       },
     );
 
-    console.log(`Uploaded logo for movie: ${title}`);
-    return { data: response.data };
+    console.log(`Uploaded image for movie: ${title}`);
+
+    return response.data[0]; // Ensure you return the full response
   } catch (error) {
     console.error("Error uploading image to API:", error.message);
+    if (error.response) {
+      console.error("Error Response:", error.response.data);
+    }
     return null;
   }
 };
 
 const sendMovieDataToApi = async (data) => {
   try {
-    const response = await axios.post(
-      "https://nisomnia.com/api/public/movie/create",
-      data,
-    );
-    console.log(
-      `Inserted movie data: ${data.title} with ID ${response.data.id}`,
-    );
+    await axios.post("http://localhost:3000/api/public/movie/create", data);
+    console.log(`Inserted movie data: ${data.title} with ID ${data.tmdbId}`);
     saveMovieDataToFile(data);
   } catch (error) {
     console.error("Error inserting movie data to API:", error.message);
@@ -140,7 +136,7 @@ const rateLimit = (func, limit, interval) => {
 const getGenreByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
-      `https://nisomnia.com/api/public/genre/by-tmdb-id/${tmdbId}`,
+      `http://localhost:3000/api/public/genre/by-tmdb-id/${tmdbId}`,
     );
     return response.data;
   } catch (error) {
@@ -152,7 +148,7 @@ const getGenreByTmdbId = async (tmdbId) => {
 const getProductionCompanyByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
-      `https://nisomnia.com/api/public/production-company/by-tmdb-id/${tmdbId}`,
+      `http://localhost:3000/api/public/production-company/by-tmdb-id/${tmdbId}`,
     );
     return response.data;
   } catch (error) {
@@ -165,14 +161,16 @@ const getProductionCompanyByTmdbId = async (tmdbId) => {
 };
 
 const saveMovieDataToFile = (movieData) => {
-  fs.appendFile(
+  fs.appendFileSync(
     "saved_movies.json",
     JSON.stringify(movieData) + "\n",
     (err) => {
       if (err) {
         console.error("Error saving movie data to file:", err.message);
       } else {
-        console.log(`Saved movie data for: ${movieData.title}`);
+        console.log(
+          `Saved movie data for: ${movieData.title} ID ${movieData.id})`,
+        );
       }
     },
   );
@@ -188,7 +186,7 @@ const logErrorMovie = (id) => {
 };
 
 const runTmdbScraper = async () => {
-  const filePath = "./movies.json";
+  const filePath = "./movies.json"; // Path to your local movie IDs file
   try {
     const movieIds = await readLocalMovieIds(filePath);
 
@@ -223,90 +221,109 @@ const runTmdbScraper = async () => {
           );
 
           if (movieDetails.poster_path) {
-            const posterImageData = await downloadImageAsBlob(
-              movieDetails.poster_path,
+            const posterImageUrl = `https://image.tmdb.org/t/p/original${movieDetails.poster_path}`;
+            const posterImageStream =
+              await downloadImageAsStream(posterImageUrl);
+            const posterResults = await uploadImageToApi(
+              posterImageStream,
+              "image/webp", // Replace with the correct content type if needed
+              `${movieDetails.title}-poster`,
             );
-            if (posterImageData?.blob) {
-              const posterResults = await uploadImageToApi(
-                posterImageData.blob,
-                posterImageData.contentType,
-                `${movieDetails.title}-poster`,
-              );
-              if (posterResults && posterResults?.data?.[0]?.url) {
-                poster_url = posterResults?.data?.[0]?.url;
-              } else {
-                throw new Error("Poster upload failed");
-              }
+
+            if (posterResults && posterResults.url) {
+              poster_url = posterResults.url; // Corrected property access
             } else {
-              throw new Error("Poster download failed");
+              throw new Error(
+                "Poster upload failed: " + JSON.stringify(posterResults),
+              );
             }
           }
 
           if (movieDetails.backdrop_path) {
-            const backdropImageData = await downloadImageAsBlob(
-              movieDetails.backdrop_path,
+            const backdropImageUrl = `https://image.tmdb.org/t/p/original${movieDetails.backdrop_path}`;
+            const backdropImageStream =
+              await downloadImageAsStream(backdropImageUrl);
+            const backdropResults = await uploadImageToApi(
+              backdropImageStream,
+              "image/webp", // Replace with the correct content type if needed
+              `${movieDetails.title}-backdrop`,
             );
-            if (backdropImageData?.blob) {
-              const backdropResults = await uploadImageToApi(
-                backdropImageData.blob,
-                backdropImageData.contentType,
-                `${movieDetails.title}-backdrop`,
-              );
-              if (backdropResults && backdropResults?.data?.[0]?.url) {
-                backdrop_url = backdropResults?.data?.[0]?.url;
-              } else {
-                throw new Error("Backdrop upload failed");
-              }
+
+            if (backdropResults && backdropResults.url) {
+              backdrop_url = backdropResults.url; // Corrected property access
             } else {
-              throw new Error("Backdrop download failed");
+              throw new Error(
+                "Backdrop upload failed: " + JSON.stringify(backdropResults),
+              );
             }
           }
 
           const dataToSend = {
-            imdbId: movieDetails.imdb_id?.toString() ?? null,
+            ...(movieDetails.imdbId && {
+              imdbId: movieDetails.imdb_id?.toString(),
+            }),
             tmdbId: movieDetails.id?.toString(),
-            title: movieDetails.originalTitle ?? movieDetails.title,
+            title: movieDetails.original_title ?? movieDetails.title,
             otherTitle: movieDetails.title,
-            overview: movieDetails.overview
-              ? `${movieDetails.overview}\n\n(Source: IMDB)`
-              : null,
-            releaseDate: movieDetails.release_date
-              ? new Date(movieDetails.release_date).toISOString()
-              : null,
-            originalLanguage: movieDetails.original_language ?? null,
-            backdrop: backdrop_url ?? null,
-            poster: poster_url ?? null,
-            tagline: movieDetails.tagline ?? null,
-            airingStatus: movieDetails.status ?? null,
-            originCountry: movieDetails.origin_country?.[0] ?? null,
-            budget: movieDetails.budget ?? null,
-            runtime: movieDetails.runtime ?? null,
-            revenue: movieDetails.revenue ?? null,
-            homepage: movieDetails.homepage ?? null,
-            spokenLanguages: movieDetails.spoken_languages
-              .map((language) => language.english_name)
-              .join(", "),
-            genres: genres?.length > 0 ? genres.map((genre) => genre.id) : null,
-            productionCompanies:
-              productionCompanies?.length > 0
-                ? productionCompanies.map((company) => company.id)
-                : null,
+            ...(movieDetails.overview && {
+              overview: `${movieDetails.overview}\n\n(Source: IMDB)`,
+            }),
+            ...(movieDetails.release_date && {
+              releaseDate: new Date(movieDetails.release_date).toISOString(),
+            }),
+            ...(movieDetails.original_language && {
+              originalLanguage: movieDetails.original_language,
+            }),
+            ...(movieDetails.backdrop_path && {
+              backdrop: backdrop_url,
+            }),
+            ...(movieDetails.poster_path && {
+              poster: poster_url,
+            }),
+            ...(movieDetails.tagline && {
+              tagline: movieDetails.tagline,
+            }),
+            airingStatus: movieDetails.status.toLowerCase() ?? "released",
+            ...(movieDetails.origin_country && {
+              originCountry: movieDetails.origin_country?.[0],
+            }),
+            status: "published",
+            ...(movieDetails.budget && {
+              budget: movieDetails.budget,
+            }),
+            ...(movieDetails.runtime && {
+              runtime: movieDetails.runtime,
+            }),
+            ...(movieDetails.revenue && {
+              revenue: movieDetails.revenue,
+            }),
+            ...(genres?.length > 0 && {
+              genres: genres.map((genre) => genre.id),
+            }),
+            ...(productionCompanies?.length > 0 && {
+              productionCompanies: productionCompanies.map(
+                (productionCompany) => productionCompany.id,
+              ),
+            }),
           };
 
           await sendMovieDataToApi(dataToSend);
         } catch (error) {
           console.error(
-            `Error sending movie data for ID ${movieDetails.id}: ${error.message}`,
+            `Error processing movie ID ${movie.id}:`,
+            error.message,
           );
           logErrorMovie(movie.id);
         }
       } else {
+        console.error(`No details found for movie ID ${movie.id}.`);
         logErrorMovie(movie.id);
       }
     }
   } catch (error) {
-    console.error("Error running TMDB scraper:", error);
+    console.error("Error in TMDB scraper:", error.message);
   }
 };
 
+// Start the TMDB scraper
 runTmdbScraper();
