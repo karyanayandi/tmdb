@@ -315,6 +315,7 @@ const runTmdbScraper = async () => {
               productionCompanies?.length > 0
                 ? productionCompanies.map((company) => company.id)
                 : undefined,
+            status: "published",
           };
 
           await sendMovieDataToApi(dataToSend);

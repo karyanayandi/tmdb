@@ -62,7 +62,10 @@ const sendToApi = async (genre) => {
   try {
     const response = await axios.post(
       "https://nisomnia.com/api/public/genre/create",
-      genre,
+      {
+        status: "published",
+        ...genre,
+      },
       {
         headers: {
           "Content-Type": "application/json",
