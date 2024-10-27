@@ -75,7 +75,7 @@ const uploadImageToApi = async (imageStream, contentType, title) => {
     formData.append("type", "image");
 
     const response = await axios.post(
-      "http://localhost:3000/api/public/media/image",
+      "https://nisomnia.com/api/public/media/image",
       formData,
       {
         headers: {
@@ -84,7 +84,7 @@ const uploadImageToApi = async (imageStream, contentType, title) => {
       },
     );
 
-    console.log(`Uploaded image for movie: ${title}`);
+    console.log(`Uploaded image for movie: ${response.data[0].name}`);
 
     return response.data[0]; // Ensure you return the full response
   } catch (error) {
@@ -98,7 +98,7 @@ const uploadImageToApi = async (imageStream, contentType, title) => {
 
 const sendMovieDataToApi = async (data) => {
   try {
-    await axios.post("http://localhost:3000/api/public/movie/create", data);
+    await axios.post("https://nisomnia.com/api/public/movie/create", data);
     console.log(`Inserted movie data: ${data.title} with ID ${data.tmdbId}`);
     saveMovieDataToFile(data);
   } catch (error) {
@@ -136,7 +136,7 @@ const rateLimit = (func, limit, interval) => {
 const getGenreByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
-      `http://localhost:3000/api/public/genre/by-tmdb-id/${tmdbId}`,
+      `https://nisomnia.com/api/public/genre/by-tmdb-id/${tmdbId}`,
     );
     return response.data;
   } catch (error) {
@@ -148,7 +148,7 @@ const getGenreByTmdbId = async (tmdbId) => {
 const getProductionCompanyByTmdbId = async (tmdbId) => {
   try {
     const response = await axios.get(
-      `http://localhost:3000/api/public/production-company/by-tmdb-id/${tmdbId}`,
+      `https://nisomnia.com/api/public/production-company/by-tmdb-id/${tmdbId}`,
     );
     return response.data;
   } catch (error) {
@@ -161,9 +161,13 @@ const getProductionCompanyByTmdbId = async (tmdbId) => {
 };
 
 const saveMovieDataToFile = (movieData) => {
+  const savedMovies = {
+    id: movieData.id,
+  };
+
   fs.appendFileSync(
     "saved_movies.json",
-    JSON.stringify(movieData) + "\n",
+    JSON.stringify(savedMovies) + "\n",
     (err) => {
       if (err) {
         console.error("Error saving movie data to file:", err.message);
