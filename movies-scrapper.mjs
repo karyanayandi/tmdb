@@ -263,10 +263,10 @@ const runTmdbScraper = async () => {
           }
 
           const dataToSend = {
+            tmdbId: movieDetails.id.toString(),
             ...(movieDetails.imdb_id && {
               imdbId: movieDetails.imdb_id,
             }),
-            tmdbId: movieDetails.id?.toString(),
             title: movieDetails.original_title ?? movieDetails.title,
             otherTitle: movieDetails.title,
             ...(movieDetails.overview && {
@@ -307,11 +307,12 @@ const runTmdbScraper = async () => {
             ...(genres?.length > 0 && {
               genres: genres.map((genre) => genre.id),
             }),
-            ...(movieDetails.spoken_languages?.length > 0 && {
-              spokenLanguages: movieDetails.spoken_languages
-                .map((language) => language.english_name)
-                .join(", "),
-            }),
+            ...(movieDetails.spoken_languages &&
+              movieDetails.spoken_languages.length > 0 && {
+                spokenLanguages: movieDetails.spoken_languages
+                  .map((language) => language.english_name)
+                  .join(", "),
+              }),
             ...(productionCompanies?.length > 0 && {
               productionCompanies: productionCompanies.map(
                 (productionCompany) => productionCompany.id,
