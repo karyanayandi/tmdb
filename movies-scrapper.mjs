@@ -284,6 +284,9 @@ const runTmdbScraper = async () => {
             ...(movieDetails.poster_path && {
               poster: poster_url,
             }),
+            ...(movieDetails.homepage && {
+              homepage: movieDetails.homepage,
+            }),
             ...(movieDetails.tagline && {
               tagline: movieDetails.tagline,
             }),
@@ -303,6 +306,11 @@ const runTmdbScraper = async () => {
             }),
             ...(genres?.length > 0 && {
               genres: genres.map((genre) => genre.id),
+            }),
+            ...(movieDetails.spoken_languages?.length > 0 && {
+              spokenLanguages: movieDetails.spoken_languages
+                .map((language) => language.english_name)
+                .join(", "),
             }),
             ...(productionCompanies?.length > 0 && {
               productionCompanies: productionCompanies.map(
